@@ -35,9 +35,6 @@ mytheme<- theme_bw()+
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank())
 
-
-setwd("~/OneDrive - Indiana University/SporeCost/Test_calculations")
-
 # Data & proteins
 
 # Gene&protein length from SubtiWiki
