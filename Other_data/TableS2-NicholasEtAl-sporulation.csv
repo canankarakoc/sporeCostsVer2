@@ -1,4 +1,4 @@
-﻿locus_tag,gene,t0_average,t1_average,t2_average,t3_average,t4_average,t5_average,t6_average,t7_average,t8_average,t135_germ_average,t150_germ_average,t180_germ_average
+﻿gene,locus_tag,t0_average,t1_average,t2_average,t3_average,t4_average,t5_average,t6_average,t7_average,t8_average,t135_germ_average,t150_germ_average,t180_germ_average
 S1,new_1_148,9.4,10.83,11.61,10.39,10.54,10.84,10.25,11.16,10.81,9.37,8.76,8.38
 S2,new_24_297_c,9.38,9.77,9.24,11.88,11.81,11.85,10.47,11.37,11.32,10.15,9.78,9.61
 S3,new_150_409,13.07,15,13.46,12.86,12.67,12.38,11.01,11.54,11,13.04,15.36,15.17
