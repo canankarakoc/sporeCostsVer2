@@ -1,5 +1,5 @@
 # Spore Costs v3
-# 25 October 2022 - last update
+# 8 December 2022 - last update
 # Author: C. Karakoc
 # Global expression data from SporeWeb https://sporeweb.molgenrug.nl/
 # Single gene deletion library from https://doi.org/10.1016/j.cels.2016.12.013
@@ -223,7 +223,6 @@ transcriptCosts_sum_reg<- transcriptCosts %>%
 sum(transcriptCosts_sum$sumTotal[1:8]) #58652301
 sum(transcriptCosts_sum$sumTotal[9:11]) #17898275
 
-#************************************************************************************************
 # Translation costs
 translationCosts <- mergedExpData_time %>%
   mutate(estimation = (abundance.filled)*(1774445/1000000)*protein_length.filled) %>% #protein abundance/100 X 1.8 X gene length
@@ -298,7 +297,7 @@ stage = "germination"
 germ = c(time, sumTotal, stage)
 combinedSum <- rbind.data.frame(combined[1:8,], germ)
 
-### Figure 1 ###
+### Figure 1A ###
 ggplot(combinedSum, aes(x = time, y = log10(as.numeric(as.character(sumTotal))), fill = stage))+
   #geom_point(size = 3, alpha = 0.8)+
   geom_bar(position="dodge", stat="identity", color = 'grey25')+
@@ -309,7 +308,7 @@ ggplot(combinedSum, aes(x = time, y = log10(as.numeric(as.character(sumTotal))),
   scale_fill_npg()+
   coord_cartesian(ylim = c(8.5,9.5))
 
-#### Figure 1 Model addition ###
+#### Figure 1A Model addition ###
 time        <- c(1:8)
 sporulation <- as.numeric(combinedSum$sumTotal[-9])
 model.data  <- cbind.data.frame(time, sporulation)
@@ -353,6 +352,7 @@ sigmaFactors_spo_sum  <- sigmaFactors_spo  %>%
   group_by(regulator) %>%
   summarise(sumTotal = sum(sumTotal))
 
+### Supplementary Figure ###
 ggplot(sigmaFactors_spo_sum, aes(x = reorder(regulator, -sumTotal), y = log10(as.numeric(as.character(sumTotal))),))+
   geom_bar(position="dodge", stat="identity")+
   ylab("Costs in units of log(ATP)")+
@@ -361,6 +361,64 @@ ggplot(sigmaFactors_spo_sum, aes(x = reorder(regulator, -sumTotal), y = log10(as
   mytheme+
   scale_fill_npg()+
   coord_cartesian(ylim = c(7,8.7))
+
+
+#******************************************************************************************
+# Timecourse of germination 
+# Protein presence data 
+# Transcription costs
+# 1 mRNA can yield to 100-1000 proteins (Cell biology by the numbers)
+
+transcriptCosts_ger <- mergedGermData_time %>%
+  mutate(estimation = (abundance.filled/1000)*(1774445/1000000)*gene_length.filled) %>% #protein abundance/100 X 1.8 X gene length
+  # the reason I multiply with 1.8 is that the protein abundance is reported as parts per million. An average size bacteria has about 3 million protein molecules
+  # this was reported experimentally as average 1774445 in Maass et.al. 2011 Bacillus
+  group_by(minutes) %>%
+  mutate(direct = estimation*(10+(2*12*(as.numeric(minutes)/360)))) %>% # average sporulation time is 8hours, we would expect 60 minutes / 5 minutes (degradation rate) 
+  # = 12 re-polymerization events per hour
+  # assuming nucleotides are well recycled and it only affects polymerization costs
+  # however the cells do not divide, neither grow so the proteins dilute. I am not sure if we have to
+  # include degradation rate.
+  mutate(opportunity = estimation*31) %>%
+  mutate(total = direct + opportunity)%>%
+  mutate(numGenes = length(minutes))
+
+# Cumulative costs
+transcriptCosts_sum_ger <- transcriptCosts_ger %>%
+  group_by(minutes) %>%
+  summarise(sumTotal = sum(total, na.rm = T)) %>%
+  mutate(type = rep('transcription'))
+
+# Translation costs
+translationCosts_ger <- mergedGermData_time %>%
+  mutate(estimation = (abundance.filled)*(1774445/1000000)*protein_length.filled) %>% #protein abundance/100 X 1.8 X gene length
+  # the reason I multiply with 1.8 is that the protein abundance is reported as parts per million. An average size bacteria has about 3 million protein molecules
+  # this was reported experimentally as average 1774445  in Maass et.al. 2011 Bacillus
+  group_by(minute) %>%
+  mutate(direct = estimation*(4+2)) %>% # ignoring protein degradation
+  mutate(opportunity = estimation*24) %>%
+  mutate(total = direct + opportunity) 
+
+# Cumulative costs
+translationCosts_sum_ger <- translationCosts %>%
+  group_by(minutes) %>%
+  summarise(sumTotal = sum(total, na.rm = T)) %>%
+  mutate(type = rep('translation'))
+
+
+# Total costs 
+combined_ger <- cbind.data.frame(time = transcriptCosts_sum_ger$minutes, 
+                                 sumTotal = transcriptCosts_sum_ger$sumTotal+translationCosts_sum_ger$sumTotal)
+
+## Figure 1C ##
+ggplot(combined_ger, aes(x = as.numeric(time), y = sumTotal))+
+  geom_bar(position="dodge", stat="identity", color = "grey25")+
+  ylab("Costs in units of ATP")+
+  xlab("Time(min)")+  
+  mytheme+
+  scale_y_continuous(labels = scientific_10)+
+  scale_fill_npg()
+### Figure 1C ###
 
 #***************************************************************************************************
 # Now merge this data with deletion library
@@ -407,7 +465,6 @@ combined_del_sum <- transcriptCosts_del %>%
             total = sum(total, na.rm = T),
             no_genes = mean(no_genes)) %>%
   mutate(norm = total/no_genes)
-  
 
 ### Figure 2 ###
 ggplot(combined_del_sum, aes(x = success, y = log10(total), color = type, fill = type))+
@@ -418,7 +475,6 @@ ggplot(combined_del_sum, aes(x = success, y = log10(total), color = type, fill =
   scale_fill_npg()+
   coord_cartesian(ylim = c(6,10))
 ### Figure 2 ###
-
 
 #*******************************************************************************************
 # Sporulation efficiency
@@ -459,7 +515,7 @@ ggplot(densityPlot, aes(x = x.new))+
 ### Figure 3 ###
 
 #********************************************************************************************
-# Merge data
+# Merge trair data
 mergedTraitData <- otherTraits %>%
   left_join(annotationData, by = "gene") %>%
   left_join(mergedAbunData[,c("locus_tag", "abundance")], by = "locus_tag") %>%
@@ -509,6 +565,7 @@ ggplot(costs_sum_traits, aes(x = log10(sumCosts), y = reorder(category, sumCosts
 costs_sum_traits_rel <- costs_sum_traits %>%
   mutate(relative = (932926184/sumCosts)*100)
 
+### Figure4 ###
 ggplot(costs_sum_traits_rel, aes(x = log10(sumCosts), y = reorder(category, sumCosts)))+
   geom_col(fill="grey", color="black")+
   geom_vline(xintercept = log10(932926184), linetype = 'dashed')+
@@ -523,50 +580,52 @@ ggplot(costs_sum_traits_rel, aes(x = log10(sumCosts), y = reorder(category, sumC
   )+
   coord_cartesian(xlim = c(7.8,10.5))+
   mytheme
+### Figure4 ###
 
-#******************************************************************************************
-# Costs of conserved sporulation genes
+#**********************************************************************************************
+# Conserved sporulation genes
 # After Acidamicoccus fermentans DSM 20731 non-sporulating species, add an id column
 col = rep(c('sporulating', 'non-sporulating'), times = c(21, 19))
 
 mergedOrtData <- conservedLib %>%
-  pivot_longer(cols = names(conservedLib[,4:43]), values_to = 'presence',
-               names_to = 'species') %>%
-  mutate(sporulation = rep(col, times = 149)) %>%
-  left_join(mergedAbunData[,-1], by = "locus_tag") %>%
+  left_join(mergedAbunData, by = "locus_tag") %>%
   mutate(abundance.filled = replace_na(abundance, 18)) %>%
   mutate(gene_length.filled = replace_na(gene_length, 558)) %>%
-  mutate(protein_length.filled = replace_na(protein_length, 251))
+  mutate(protein_length.filled = replace_na(protein_length, 251)) %>%
+  mutate(presence_occurrence = str_count(text, present)) 
 
-# Transcription costs
-transcriptCosts_ort <- mergedOrtData %>%
-  mutate(estimation = (abundance.filled/1000)*(1774445/1000000)*gene_length.filled) %>%
-  mutate(direct = estimation*(10+(2*12*1))) %>%
-  mutate(opportunity = estimation*31) %>%
-  mutate(total = direct + opportunity)
+names(mergedOrtData[,4:43]) <- col
 
-# Translation costs
-translationCosts_ort <- mergedOrtData %>%
-  mutate(estimation = abundance.filled*(1774445/1000000)*protein_length.filled) %>%
-  mutate(direct = estimation*(4+2)) %>%
-  mutate(opportunity = estimation*24) %>%
-  mutate(total = direct + opportunity)
+# Absence/presence of essential genes
 
+#mergedOrtData$presence <- apply(mergedOrtData[,4:43], 1, table)
+mergedOrtData$present <- apply(mergedOrtData[,4:43], 1, function(x) length(which(x=='present')))
+mergedOrtData$absent  <- apply(mergedOrtData[,4:43], 1, function(x) length(which(x=='absent')))
+mergedOrtData$freq    <- (mergedOrtData$absent/40)*100
 
-dummyData <- cbind.data.frame(gene = transcriptCosts_ort$presence, species = transcriptCosts_ort$sporulation, 
-               costs = transcriptCosts_ort$total+translationCosts_ort$total)
-
-ggplot(dummyData, aes(x = log10(costs), fill = gene, color = gene))+
-  geom_density(alpha = 0.2)+
-  ylab("Frequency")+
-  xlab("Costs in units of log(ATP)")+
-  facet_grid(species~.)+
+### Supplementary Figures ###
+ggplot(mergedOrtData, aes(y = absent, x = gene_length.filled))+
+  geom_point()+
+  geom_smooth(span=1)+
+  ylab("Frequency of absence")+
+  xlab("Gene length")+
   mytheme+
   scale_fill_npg()+
-  scale_color_npg()
+  scale_y_continuous(limits=c(0,40))
+
+ggplot(mergedOrtData, aes(y = absent, x = abundance.filled))+
+  geom_point()+
+  geom_smooth(span=1)+
+  ylab("Percentage of absence")+
+  xlab("Protein abundance")+
+  mytheme+
+  scale_fill_npg()+
+  scale_y_continuous(limits=c(0,40))
 
 #***********************************************************************************
 # Cost of being a spore 
+# Too high, estimated for new spores
+# Supplementary if necessary 
 
 mergedSporeData <-  sporeTranscript %>%
   left_join(mergedAbunData, by = "gene") %>%
@@ -598,57 +657,3 @@ combined_spore_sum <- transcriptCosts_spore %>%
             total = sum(total, na.rm = T)) 
 
 #***********************************************************************************
-# Timecourse of germination 
-
-# Transcription costs
-# 1 mRNA can yield to 100-1000 proteins (Cell biology by the numbers)
-
-transcriptCosts_ger <- mergedGermData_time %>%
-  mutate(estimation = (abundance.filled/1000)*(1774445/1000000)*gene_length.filled) %>% #protein abundance/100 X 1.8 X gene length
-  # the reason I multiply with 1.8 is that the protein abundance is reported as parts per million. An average size bacteria has about 3 million protein molecules
-  # this was reported experimentally as average 1774445 in Maass et.al. 2011 Bacillus
-  group_by(minutes) %>%
-  mutate(direct = estimation*(10+(2*12*(as.numeric(minutes)/360)))) %>% # average sporulation time is 8hours, we would expect 60 minutes / 5 minutes (degradation rate) 
-  # = 12 re-polymerization events per hour
-  # assuming nucleotides are well recycled and it only affects polymerization costs
-  # however the cells do not divide, neither grow so the proteins dilute. I am not sure if we have to
-  # include degradation rate.
-  mutate(opportunity = estimation*31) %>%
-  mutate(total = direct + opportunity)%>%
-  mutate(numGenes = length(minutes))
-
-# Cumulative costs
-transcriptCosts_sum_ger <- transcriptCosts_ger %>%
-  group_by(minutes) %>%
-  summarise(sumTotal = sum(total, na.rm = T)) %>%
-  mutate(type = rep('transcription'))
-
-#************************************************************************************************
-# Translation costs
-translationCosts_ger <- mergedGermData_time %>%
-  mutate(estimation = (abundance.filled)*(1774445/1000000)*protein_length.filled) %>% #protein abundance/100 X 1.8 X gene length
-  # the reason I multiply with 1.8 is that the protein abundance is reported as parts per million. An average size bacteria has about 3 million protein molecules
-  # this was reported experimentally as average 1774445  in Maass et.al. 2011 Bacillus
-  group_by(minute) %>%
-  mutate(direct = estimation*(4+2)) %>% # ignoring protein degradation
-  mutate(opportunity = estimation*24) %>%
-  mutate(total = direct + opportunity) 
-
-# Cumulative costs
-translationCosts_sum_ger <- translationCosts %>%
-  group_by(minutes) %>%
-  summarise(sumTotal = sum(total, na.rm = T)) %>%
-  mutate(type = rep('translation'))
-
-
-# Total costs 
-combined_ger <- cbind.data.frame(time = transcriptCosts_sum_ger$minutes, 
-                             sumTotal = transcriptCosts_sum_ger$sumTotal+translationCosts_sum_ger$sumTotal)
-
-ggplot(combined_ger, aes(x = as.numeric(time), y = sumTotal))+
-  geom_bar(position="dodge", stat="identity", color = "grey25")+
-  ylab("Costs in units of ATP")+
-  xlab("Time(min)")+  
-  mytheme+
-  scale_y_continuous(labels = scientific_10)+
-  scale_fill_npg()
