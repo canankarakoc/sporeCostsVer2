@@ -1,5 +1,5 @@
 # Spore Costs v2
-# 14 September 2023 - last update
+# 18 September 2023 - last update
 # Author: C. Karakoc
 # Global expression data from SporeWeb: https://sporeweb.molgenrug.nl/
 # Germination data: https://doi.org/10.3390/ijms232113614
@@ -481,8 +481,8 @@ x <- preddata$tt[1:11]
 y <- preddata$pred[1:11]
 plot(x,y,"l")
 line_integral(x,y)
-(442154587/1547593909)*100 #28.6%. %only transcription and translation 
-(442154587+413051380)/1547593909*100
+(442154587/sum(sporulationTotal))*100 #28.6%. %only transcription and translation 
+
 
 # New figure for replication 
 type_rep  <- c("opportunity", "direct", "opportunity", "direct")
@@ -620,7 +620,7 @@ coef(fit2)
 
 label2    <- coef(fit2)[3]
 
-tt2       <- seq(0, 2.5, by = 0.01)
+tt2       <- seq(0.5, 2.5, by = 0.01)
 pred2     <- predict(fit2, list(hours = tt2))
 preddata2 <- cbind.data.frame(pred2, tt2)
 
@@ -645,8 +645,8 @@ ggplot(NULL, aes(x = x, y = y))+
   scale_fill_npg()+
   annotate(geom = "text", x = 2.5, y = 2e9, label = paste0("-\U03BB", "=" , round(label, 3)), hjust = "right", size = 4, fontface = 'italic')+
   annotate(geom = "text", x = 2.5, y = 1.5e9, label = paste0("R2", "=" , round(R2, 3)), hjust = "right", size = 4, fontface = 'italic')+
-  theme(legend.position = c(0.8, 0.8), legend.title = element_blank())
-
+  theme(legend.position = c(0.8, 0.8), legend.title = element_blank())+
+  scale_x_continuous(breaks = c(0.5, 0.8, 1, 1.5, 1.7, 2, 2.5))
 # END Figure 2 
 
 # Costs until germination
@@ -1021,7 +1021,6 @@ ggplot(scDataAll, aes(x = log10(sc)))+
 # 1. Differential gene expression 
 #########################################################################
 germLong1 <- germination1 %>%
-  select("locus_tag", "gene", "Tminus30_Tminus15","Tminus15_T0","T0_T15","T15_T30","T30_T60","T60_T150","T150_T330") %>%
   pivot_longer(cols = c("Tminus30_Tminus15","Tminus15_T0","T0_T15","T15_T30","T30_T60","T60_T150","T150_T330"),
                names_to =  "time_interval", values_to = "expression") %>%
   filter(!expression == 0) %>%
@@ -1097,7 +1096,6 @@ germination1sum <- germination1_all %>%
 ggplot(data = germination1sum, aes(x = ordered_interval, y = costs, fill = name))+
   geom_bar(stat = "identity")+
   ggtitle("differential gene exp. + prot database ")
-
 #########################################################################
 # 2. Differential protein expression
 #########################################################################
@@ -1188,67 +1186,53 @@ ggplot(data = germination2sum, aes(x = ordered_interval, y = costs, fill = name)
 #########################################################################
 # 3. Newly synthesized proteins - Goes to manuscript
 #########################################################################
+germination6_interval <- cbind.data.frame(
+  protID = germination6$ProtID, H0.25 = germination6$T15-germination6$T0,
+  H0.5 = germination6$T30-germination6$T15, H1 = germination6$T60-germination6$T30, 
+  H1.5 = germination6$T90-germination6$T60, H2 = germination6$T90-germination6$T60,
+  H3 = germination6$T150-germination6$T90, H4 = germination6$T210-germination6$T150, 
+  H5.5 = germination6$T330-germination6$T210)
 
-germLong6 <- germination6 %>%
-  pivot_longer(cols = c("T0","T15","T30","T60","T90","T150","T210","T330"),
+
+germLong6_interval <- germination6_interval %>%
+  pivot_longer(cols = c(H0.25:H5.5),
                names_to =  "time_interval", values_to = "score") %>%
-  filter(!score == 0) %>%
-  mutate(time_h = case_when(
-    time_interval == "T0" ~ 0,
-    time_interval == "T15" ~ 0.25,
-    time_interval == "T30" ~ 0.25,
-    time_interval == "T60" ~ 0.5,
-    time_interval == "T90" ~ 0.5,
-    time_interval == "T150" ~ 1.5,
-    time_interval == "T210" ~ 1,
-    time_interval == "TT330" ~ 2)) %>%
-  mutate(ordered_interval = case_when(
-    time_interval == "T0" ~ 'H0',
-    time_interval == "T15" ~ 'H0.25',
-    time_interval == "T30" ~ 'H0.5',
-    time_interval == "T60" ~ 'H1',
-    time_interval == "T90" ~ 'H1.5',
-    time_interval == "T150" ~ 'H2.5',
-    time_interval == "T210" ~ 'H3.5',
-    time_interval == "T330" ~ 'H5.5')) 
+  filter(!score <= 0)
 
 protSeqTidyAbun$gene <- protSeqTidyAbun$gene.y
-protID_gene <- germination2[,c("protID", "gene")]
-germLong6$protID <- germLong6$ProtID
-median(germLong6$score, na.rm = T)
 
-germLong6_merged <- germLong6 %>%
+germLong6_merged_interval <- germLong6_interval %>%
   left_join(protID_gene, by = "protID") %>%
   left_join(protSeqTidyAbun, by = "gene") %>%
-  mutate(score.filled = replace_na(abundance, 18)) %>%
-  mutate(abundance.filled = replace_na(abundance, 18)) %>%
+  mutate(score.filled = replace_na(score, 18)) %>%
+  #mutate(abundance.filled = replace_na(abundance, 18)) %>%
   mutate(gene_length.filled = replace_na(gene_length, 765)) %>%
-  mutate(protein_length.filled = replace_na(protein_length, 254))
-
-germLong6_merged_DIST <-  germLong6 %>%
-  left_join(protID_gene, by = "protID") %>%
-  left_join(protSeqTidyAbun, by = "gene") %>%
-  distinct(protID, .keep_all = TRUE) %>% # genes are accounted only once
-  mutate(score.filled = replace_na(abundance, 18)) %>%
-  mutate(abundance.filled = replace_na(abundance, 18)) %>%
-  mutate(gene_length.filled = replace_na(gene_length, 765)) %>%
-  mutate(protein_length.filled = replace_na(protein_length, 254))
+  mutate(protein_length.filled = replace_na(protein_length, 254))%>%
+  mutate(time_h = case_when(
+    time_interval == "H0.25" ~ 0.25,
+    time_interval == "H0.5" ~ 0.25,
+    time_interval == "H1" ~ 0.5,
+    time_interval == "H1.5" ~ 0.5,
+    time_interval == "H2" ~ 0.5,
+    time_interval == "H3" ~ 1,
+    time_interval == "H4" ~ 1,
+    time_interval == "H5.5" ~ 1.5))
 
 ### Transcription costs ###
 # Opportunity costs 
-germination6opp   <- germLong6_merged_DIST %>%
+germination6opp_interval   <- germLong6_merged_interval %>%
   mutate(estimation  = (score.filled/1e2)*(1774445)/1e6) %>% 
   mutate(opportunity = estimation*31) %>%
-  group_by(ordered_interval) %>% 
+  group_by(time_interval) %>% 
   summarise(value  = sum(opportunity, na.rm = T))%>%
   mutate(source = rep("translation"))%>%
   mutate(name = rep("direct")) 
 
 # Direct costs 
-germination6dir    <- germLong6_merged  %>%
+germination6dir_interval    <- germLong6_merged_interval  %>%
   mutate(estimation  = (score.filled/1e2)*(1774445/1e6)*gene_length.filled) %>% 
   mutate(direct      = estimation*(10+(2*12*time_h)))%>%
-  group_by(ordered_interval) %>% 
+  group_by(time_interval) %>% 
   summarise(value  = sum(direct, na.rm = T)) %>%
   mutate(source = rep("translation")) %>%
   mutate(name = rep("direct")) 
@@ -1256,30 +1240,96 @@ germination6dir    <- germLong6_merged  %>%
 ### Translation costs ###
 
 # Opportunity and direct costs 
-germination6translation <- germLong6_merged_DIST  %>%
+germination6translation_interval <- germLong6_merged_interval  %>%
   mutate(estimation = ((score.filled)*(1774445))/1e6) %>% 
   mutate(direct = estimation*aa_directSum) %>% # ignoring protein degradation
   mutate(opportunity = estimation*aa_opportunitySum) %>% 
   mutate(total = direct + opportunity)%>% 
-  group_by(ordered_interval) %>%
+  group_by(time_interval) %>%
   summarise(opportunity = sum(opportunity, na.rm = T), 
             direct = sum(direct, na.rm = T)) %>%
   pivot_longer(cols = 2:3) %>%
   mutate(source = rep("translation"))
 
-germination6_all <- rbind.data.frame(germination6dir, germination6opp, germination6translation)
+germination6_all_interval <- rbind.data.frame(germination6dir_interval, germination6opp_interval, germination6translation_interval)
 
-germination6sum <- germination6_all %>%
-  filter(!is.na(ordered_interval)) %>%
-  group_by(ordered_interval) %>%
+germination6sum_interval <- germination6_all_interval %>%
+  group_by(time_interval, name) %>%
   summarise(costs = sum(value)) %>%
-  mutate(hour = gsub("[A-Z]", "", ordered_interval))
+  mutate(hour = gsub("[A-Z]", "", time_interval))
 
-ggplot(data = germination6sum, aes(x = as.numeric(hour), y = costs))+
+ggplot(data = germination6sum_interval, aes(x = time_interval, y = costs))+
   geom_bar(stat = "identity")+
   ggtitle("newly synthesized and counted proteins")
   #coord_cartesian(ylim = c(7.5,9.5))
 
-sum(germination6sum$costs[1:4])
 #########################################################################
+# Model, plot, pie
+#########################################################################
+germination6sum_interval$hours <- as.numeric(germination6sum_interval$hour)
 
+germination6sum_int_sum <- germination6sum_interval %>%
+  group_by(hours) %>%
+  summarize(costs = sum(costs)) %>%
+  filter(!hours == 0.25) %>%
+  filter(!hours == 5.5)
+
+fit3 <- nls(costs ~ SSasymp(hours, yf, y0, log_alpha), data = germination6sum_int_sum)
+coef(fit3) 
+
+label3    <- coef(fit3)[3]
+
+tt3       <- seq(0.5, 4, by = 0.01)
+pred3     <- predict(fit3, list(hours = tt3))
+preddata3 <- cbind.data.frame(pred3, tt3)
+
+RSS.p3 <- sum(residuals(fit3)^2)
+y3     <- as.numeric(as.character(germination6sum_int_sub$costs))
+TSS3   <- sum((log10(y3) - mean(y3))^2)
+R23    <- 1 - (RSS.p3/TSS3)
+
+#scientific_10 <- function(x) {
+#  parse(text=gsub("e", " %*% 10^", scales::scientific_format()(x)))
+#}
+
+# Plot 
+
+germination6sum_interval_plotSum <- germination6sum_interval %>%
+  #filter(!hours == 0.25) %>%
+  filter(!hours == 5.5)
+
+ggplot(NULL, aes(x = x, y = y))+
+  geom_bar(data = germination6sum_interval_plotSum, 
+           aes(x = hours, y = costs, fill = name), stat = "identity", color = 'grey25')+
+  ylab("ATP molecules")+
+  xlab("Time (h)")+
+  geom_line(data = preddata3, aes(x = tt3, y = pred3))+
+  mytheme+
+  scale_y_continuous(labels = scientific_10)+
+  scale_fill_npg()+
+  annotate(geom = "text", x = 4.1, y = 1.2e9, label = paste0("\U03BB", "=" , round(label, 3)), hjust = "right", size = 4, fontface = 'italic')+
+  annotate(geom = "text", x = 4.1, y = 1.5e9, label = paste0("r2", "=" , round(R2, 3)), hjust = "right", size = 4, fontface = 'italic')+
+  annotate(geom = "text", x = 4.1, y = 1.8e9, label = "outgrowth", hjust = "right", size = 4, fontface = 'italic')+
+  annotate(geom = "text", x = 4.1, y = 1e9, label = "germination", hjust = "right", size = 4, fontface = 'italic' )+
+  theme(legend.position = "none")
+
+
+# Pie
+all_Germ_sum_pie<- sumAll_Germ %>%
+  group_by(source) %>%
+  summarise(costs = sum(value))
+
+replicationGerm   = germRepTotal/sum(all_Germ_sum$costs+germRepTotal+87154355)*100 #germination genes 0.6%
+transcriptionGerm = 681377848/sum(all_Germ_sum$costs+germRepTotal+87154355)*100 #8.1%
+translationGerm   = 6317061229/sum(all_Germ_sum$costs+germRepTotal+87154355)*100 #74.8%
+membraneGerm      = 87154355/sum(all_Germ_sum$costs+germRepTotal+87154355)*100 #%1
+
+proportion2 <- c(round(replicationGerm, 2), round(transcriptionGerm, 2), round(translationGerm, 2), round(membraneGerm, 2) )
+pieCost2    <- c("replication", "transcription", "translation", "membrane")
+pieData2    <- cbind.data.frame(pieCost2, proportion2)
+
+ggplot(pieData2, aes(x = "", y = proportion2, fill = pieCost2))+
+  geom_bar(width = 1, stat = "identity", color = "black")+ 
+  coord_polar("y", start=0)+
+  mytheme+ 
+  scale_fill_manual(values = c("#E64B35","#4DBBD5","#3C5488","#F39B7F"))
