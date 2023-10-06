@@ -1,7 +1,8 @@
 # Spore Costs v2
-# 18 September 2023 - last update
+# 6 October 2023 - last update
 # Author: C. Karakoc
 # Global expression data from SporeWeb: https://sporeweb.molgenrug.nl/
+# Alternative expression data for validation: https://doi.org/10.3390/ijms22179345
 # Germination data: https://doi.org/10.3390/ijms232113614
 # Germination expression data: https://doi.org/110.1128/mSphere.00463-20   
 # Single gene deletion library from: https://doi.org/10.1016/j.cels.2016.12.013
@@ -10,9 +11,10 @@
 # Protein sequence: Uniprot https://www.uniprot.org/taxonomy/224308
 # Amino acid costs: https://doi.org/10.1073/pnas.1701670114
 
-###############################################################################
+######################
 # Packages & Plotting 
-###############################################################################
+######################
+##########################################################################
 library(tidyverse)       
 library(patchwork) # for nls
 library(ggpmisc) # for the formulas of fits
@@ -33,7 +35,7 @@ mytheme <- theme_bw()+
         plot.background = element_blank(),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), 
-        axis.ticks.length = unit(-1.5, "mm"))
+        axis.ticks.length = unit(-2, "mm"))
 
 # Color palette inspired by plots in Nature Reviews Cancer
 
@@ -43,11 +45,13 @@ paletteNature <- c("Cinnabar" = "#E64B35", "Shakespeare" = "#4DBBD5",
   "MonteCarlo" = "#91D1C2", "Monza" = "#DC0000",
   "RomanCoffee" = "#7E6148", "Sandrift" = "#B09C85")
 
-###############################################################################
 setwd("~/GitHub/sporeCostsVer2")
-################################################################################
+
 # Data 
-################################################################################
+######################
+# Data
+######################
+##########################################################################
 # Gene&protein length from SubtiWiki
 annotationData <- read.table("./otherData/subtiwiki.gene.export.2022-05-11.csv", sep = ",", dec = "." , header = T, stringsAsFactors = F, na.strings=c(" ","NA"))
 
@@ -71,34 +75,35 @@ nucCosts       <- read.table("./otherData/nucleotideCosts_pnas.1701670114.sd01.c
 # Single gene deletion library from Koo et al., 2018
 deletionLib    <- read.table("./mutantLibraryData/mmc7_Koo_etal_2017_TableS6A.csv", sep = ",", dec = "." , header = T, stringsAsFactors = F, na.strings=c(" ","NA"))
 mutantLib      <- read.table("./mutantLibraryData/mmc7_Koo_etal_2017_TableS6B.csv", sep = ",", dec = "." , header = T, stringsAsFactors = F, na.strings=c(" ","NA"))
-conservedLib  <- read.table("./mutantLibraryData/mmc7_Koo_etal_2017_TableS6E.csv", sep = ",", dec = "." , header = T, stringsAsFactors = F, na.strings=c(" ","NA"))
+conservedLib   <- read.table("./mutantLibraryData/mmc7_Koo_etal_2017_TableS6E.csv", sep = ",", dec = "." , header = T, stringsAsFactors = F, na.strings=c(" ","NA"))
 
 # Other traits from SubtiWiki lists 
 otherTraits    <- read.table("./otherData/traits.csv", sep = ",", dec = "." , header = T, stringsAsFactors = F)
 
 # Germination time course - Gao et. al. 2022
-germination   <- read.table("./germinationData/proteinTimeCourseGaoEtAl2022.csv", sep = ",", header = T) 
+germination    <- read.table("./germinationData/proteinTimeCourseGaoEtAl2022.csv", sep = ",", header = T) 
 
 # Germination time course - Swarge et al. 2020 
-germination1  <- read.table("./germinationData/Swarge_DifferentiallyExpressedGenes.csv", sep = ",", header = T)
-germination2  <- read.table("./germinationData/Swarge_DifferentialProteinExp.csv", sep = ",", header = T)
-germination3  <- read.table("./germinationData/Swarge_NonDifferentiallyExpressedProt.csv", sep = ",", header = T)
-germination4  <- read.table("./germinationData/Swarge_ProteinScore.csv", sep = ",", header = T) 
-germination5  <- read.table("./germinationData/Swarge_SporeNewproteinRatio_geoMean.csv", sep = ",", header = T) 
-germination6  <- read.table("./germinationData/SwargeEtAl_onlyNewProteins.csv", sep = ",", header = T) 
+germination1   <- read.table("./germinationData/Swarge_DifferentiallyExpressedGenes.csv", sep = ",", header = T)
+germination2   <- read.table("./germinationData/Swarge_DifferentialProteinExp.csv", sep = ",", header = T)
+germination3   <- read.table("./germinationData/Swarge_NonDifferentiallyExpressedProt.csv", sep = ",", header = T)
+germination4   <- read.table("./germinationData/Swarge_ProteinScore.csv", sep = ",", header = T) 
+germination5   <- read.table("./germinationData/Swarge_SporeNewproteinRatio_geoMean.csv", sep = ",", header = T) 
+germination6   <- read.table("./germinationData/SwargeEtAl_onlyNewProteins.csv", sep = ",", header = T) 
   
-# Spore time course alternative 
-sporulation1  <- read.table("./otherData/TuEtAll_Sporulation_ProteinExpression.csv", sep = ",", header = T) 
+# Spore time course alternative test
+sporulation1   <- read.table("./otherData/TuEtAll_Sporulation_ProteinExpression.csv", sep = ",", header = T) 
 
 # Sporulation efficiency
-efficiency   <- read.table("./otherData/efficiency.csv", sep = ",", dec = "." , header = T, stringsAsFactors = F)
+efficiency     <- read.table("./otherData/efficiency.csv", sep = ",", dec = "." , header = T, stringsAsFactors = F)
 
                            ###########
-###########################SPORULATION##########################################
+###########################SPORULATION#####################################
                            ###########
-################################################################################
+#####################
 # Time series prep
-################################################################################
+#####################
+##########################################################################
 
 # Expression data from SporeWeb
 files  <- list.files(path = "./SporeWebHeatmaps/" , pattern = "*.csv", full.names = T)
@@ -117,12 +122,15 @@ expressionLong <- merged_exp[,c(1, 3:5, 7:14)] %>%
   group_by(time, sourceID, regulators, gene, locus_tag) %>%
   summarise(meanexp = mean(expression)) %>%
   ungroup() %>%
-  filter(meanexp >= 0.01) %>%
+  filter(meanexp > 0) %>%
 mutate(time_h = gsub('t', '', time)) 
 
-################################################################################
+
 # Abundance data prep
-################################################################################
+#####################
+# Protein abundance
+#####################
+##########################################################################
 
 # Protein abundance data does not include locus tags
 # It is often easier to merge data sets with locus tags, because genes have a lot of synonyms
@@ -191,12 +199,15 @@ seqCount <- protSeqTidy %>%
   
 protSeqTidyAbun <-  protSeqTidy %>%
   left_join(seqCount[,-1], by = "locus_tag") %>%
-  select("gene.y","locus_tag", "abundance", "protein_length", "gene_length", "aa_opportunitySum", "aa_directSum") %>%
+  select("gene.y", "protID", "locus_tag", "abundance", "protein_length", "gene_length", "aa_opportunitySum", "aa_directSum") %>%
   distinct(locus_tag, .keep_all = TRUE)
 
-################################################################################
+
 # Accounting data prep
-################################################################################
+#####################
+# Expression data
+#####################
+##########################################################################
 
 # Merge with expression data
 # Here I'll create two different data sets. One for calculating transcription
@@ -217,9 +228,12 @@ mergedExpData_time <-  expressionLong %>%
   mutate(gene_length.filled = replace_na(gene_length, 765)) %>%
   mutate(protein_length.filled = replace_na(protein_length, 254))
 
-################################################################################
+
 # Replication costs (Whole genome) 
-################################################################################
+#####################
+# Genome costs
+#####################
+##########################################################################
 # Genome size = (https://www.nature.com/articles/36786)
 # Opportunity 
 # 2 * Genome size * (34+1)
@@ -230,9 +244,11 @@ genome_dir <- 2 * 4214810 * 14 #118014680
 # Total
 genome_tot <- 295036700 + 118014680 #413051380
 
-################################################################################
 # Membrane costs 
-################################################################################
+#####################
+# Membrane costs
+#####################
+##########################################################################
 
 # Number of lipid molecules = Cellular membrane areas/head-group areas of membrane lipid molecules
 # Head group a1 = 0.65 nm2 (Nagle and Tristram-Nagle 2000; Petrache et al. 2000; Kucerka et al. 2011).
@@ -265,17 +281,20 @@ genome_tot <- 295036700 + 118014680 #413051380
 4016678988+341038782 #4357717770
 
 # 50% discount, because of proteins
-4357717770/50 #87154355
+4357717770/2 #2178858885
 
 # Septum is 1/6 of the total membrane
-87154355/6 #14525726
+2178858885/6 #363143148
 
-lipid_opp <- (4016678988/50)/6
-lipid_dir <- (341038782/50)/6
+lipid_opp <- (4016678988/2)/6
+lipid_dir <- (341038782/2)/6
+lipid_tot <- lipid_opp+lipid_dir
 
-################################################################################
 # Replication costs of expressed genes
-################################################################################
+#####################
+# Spore Replication 
+#####################
+##########################################################################
 # 878 genes
 # 4429 genes whole genome
 sum(mergedExpData_time_distinct$gene_length.filled)
@@ -300,9 +319,11 @@ sporeRepTotal <- sporeRepSum$sumOpp+sporeRepSum$sumDir
 # percentage compared to total genome
 70842044/413051380  #17%
 
-################################################################################
 # Transcription costs
-################################################################################
+#####################
+# Spore Transcription
+#####################
+##########################################################################
 
 # 1 mRNA can yield to 100-1000 proteins (Cell biology by the numbers)
 # I will count opportunity costs separately, so I can consider repolimerization costs
@@ -316,7 +337,7 @@ sporeTranscriptOpp <- mergedExpData_time_distinct %>%
 
 # Sum 
 sporeTranscriptOppSum <- sporeTranscriptOpp %>%
-    group_by(time) %>%
+  group_by(time) %>%
   summarise(sumOpp = sum(opportunity, na.rm =T))
 
 # Sum stages
@@ -354,9 +375,12 @@ transcriptSum <- colSums(transcriptCosts[,-1])
 sporeTranscriptDirDist <- sporeTranscriptDir %>%
               group_by(locus_tag) %>%
               summarise(sumDist = sum(direct, na.rm =T))
-################################################################################
+
 # Translation costs
-################################################################################
+#####################
+# Spore Translation
+#####################
+##########################################################################
 
 # Opportunity and direct costs 
 sporeTranslationOppDir <- mergedExpData_time_distinct %>%
@@ -379,12 +403,14 @@ opp <- translationSum[1]+genome_opp+sporeRepSum$sumOpp+lipid_opp
 # Direct
 dir <- translationSum[2]+genome_dir+sporeRepSum$sumDir+lipid_dir
 
-(opp/(opp+dir))*100 #77.9
-(dir/(opp+dir))*100 #22.1
+(opp/(opp+dir))*100 #80
+(dir/(opp+dir))*100 #20
 
-################################################################################
-# Total costs, plots, pie, bars, model
-################################################################################
+# Total costs, plots, pie, bars, model - TODO: Remove membrane
+#####################
+# Total, model, plot
+#####################
+##########################################################################
 
 # Total costs 
 cost_rep_all    <- genome_opp+genome_dir
@@ -395,13 +421,14 @@ cost_translation<- sum(sporeTranslationOppDirSum$total)
 cost_membrane   <- lipid_opp+lipid_dir
 all_pie_costs   <- cost_rep_all+cost_transcript+cost_translation+cost_membrane 
 total_spore     <- cost_rep_part+cost_transcript+cost_translation+cost_membrane
+total_spore_nm  <- cost_rep_part+cost_transcript+cost_translation   
 
 # % proportions 
-rep_partial     <- cost_rep_part/all_pie_costs*100 #3.6%
-rep_rest        <- cost_rep_rest/all_pie_costs*100 #17.3%
-transcript      <- cost_transcript/all_pie_costs*100 #%17.6 
-translation     <- cost_translation/all_pie_costs*100 #60.8
-membrane        <- cost_membrane/all_pie_costs*100 #0.7%
+rep_partial     <- cost_rep_part/all_pie_costs*100 #1.7%
+rep_rest        <- cost_rep_rest/all_pie_costs*100 #16.1%
+transcript      <- cost_transcript/all_pie_costs*100 #%14.9 
+translation     <- cost_translation/all_pie_costs*100 #51.7
+membrane        <- cost_membrane/all_pie_costs*100 #15.6%
   
 proportion <- c(rep_partial, rep_rest, transcript, translation, membrane)
 pieCost    <- c("replication_partial", "replication_rest", "transcription", "translation", "membrane")
@@ -409,7 +436,7 @@ pieData    <- cbind.data.frame(pieCost, proportion)
 
 ggplot(pieData, aes(x = "", y = proportion, fill = pieCost))+
   geom_bar(width = 1, stat = "identity")+ 
-  coord_polar("y", start=0)+
+  coord_polar("y", start = 0)+
   mytheme+ 
   scale_fill_npg()
 
@@ -463,10 +490,8 @@ ggplot(NULL, aes(x = x, y = y))+
   scale_fill_npg()+
   annotate(geom = "text", x = 8.5, y = 2e8, label = paste0("-\U03BB", "=" , round(label, 3)), hjust = "right", size = 4, fontface = 'italic')+
   annotate(geom = "text", x = 8.5, y = 1e8, label = paste0("R2", "=" , round(R2, 3)), hjust = "right", size = 4, fontface = 'italic')+
-  #annotate(geom = "text", x = 8.5, y = 295036700, label = "Direct replication costs", hjust = "right", size = 4, fontface = 'italic', color ="grey50")+
-  #annotate(geom = "text", x = 8.5, y = 118014680, label = "Opportunity replication costs", hjust = "right", size = 4, fontface = 'italic', color ="grey50")+
-  #annotate(geom = "text", x = 8.5, y = 14525726, label = "Total membrane costs", hjust = "right", , size = 4, fontface = 'italic', color ="grey50")+
   theme(legend.position = c(0.8, 0.8), legend.title = element_blank())
+
 # END Figure 1 
 
 # Costs until full commitment 
@@ -482,7 +507,6 @@ y <- preddata$pred[1:11]
 plot(x,y,"l")
 line_integral(x,y)
 (442154587/sum(sporulationTotal))*100 #28.6%. %only transcription and translation 
-
 
 # New figure for replication 
 type_rep  <- c("opportunity", "direct", "opportunity", "direct")
@@ -501,7 +525,7 @@ ggplot(NULL, aes(x = x, y = y))+
   scale_fill_npg()+
   theme(legend.position = "none")
 
-################################################################################
+
 # Regulons
 #selected <- c("SigE", "SigF", "SigG", "SigH", "SigK")
 #SigE: early mother cell-specific sporulation sigma factor
@@ -510,11 +534,13 @@ ggplot(NULL, aes(x = x, y = y))+
 #SigH: sigma factor that controls genes of the transition phase
 #SigK: late mother cell-specific sporulation sigma factor
 ### Regulons
+                          
                           ###########
 ##########################GERMINATION#####################################
                           ###########
-##########################################################################
+#####################
 # Time course of germination 
+#####################
 ##########################################################################
 protSeqTidyAbun$gene <- protSeqTidyAbun$gene.y
 germinationLong <- germination %>%
@@ -534,8 +560,9 @@ germinationLongDIST <- germination %>%
   mutate(gene_length.filled = replace_na(gene_length, 765)) %>%
   mutate(protein_length.filled = replace_na(protein_length, 254))
 
-##########################################################################
+#####################
 # Replication costs
+#####################
 ##########################################################################
 
 germRep  <- germinationLongDIST %>%
@@ -544,11 +571,15 @@ germRep  <- germinationLongDIST %>%
 
 # Sum 
 germRepSum <- germRep %>%
+  group_by(time) %>%
   summarise(sumOpp = sum(opportunity, na.rm =T), sumDir = sum(direct, na.rm =T))
 germRepTotal <- germRepSum$sumOpp+germRepSum$sumDir
 
-##########################################################################
+
 # Transcription costs
+######################
+# Transcription costs
+######################
 ##########################################################################
 
 # Opportunity costs 
@@ -575,8 +606,9 @@ germTranscriptDirSum <- germTranscriptDir %>%
   mutate(source = rep("transcription")) %>%
   mutate(name = rep("direct")) 
   
-##########################################################################
-# Translation costs 
+######################
+# Translation costs
+######################
 ##########################################################################
 
 # Opportunity and direct costs 
@@ -596,8 +628,9 @@ germTranslationOppDirSum <- germTranslationOppDir %>%
 
 sumAll_Germ <- rbind.data.frame(germTranscriptOppSum, germTranscriptDirSum, germTranslationOppDirSum)
 
-##########################################################################
-# Total costs, plots, model, pie
+######################
+# Total costs, plots 
+######################
 ##########################################################################
 
 all_Germ_sum <- sumAll_Germ %>%
@@ -610,17 +643,14 @@ all_Germ_sum <- sumAll_Germ %>%
     time == "t120" ~ 2,
     time == "t150" ~ 2.5))
 
-ggplot(data = all_Germ_sum, aes(x = hours, y = costs, fill = name))+
-  geom_bar(stat = "identity") 
-
-# Figure 2 Model
+# Figure Model
 
 fit2 <- nls(costs ~ SSasymp(hours, yf, y0, log_alpha), data = all_Germ_sum)
 coef(fit2) 
 
 label2    <- coef(fit2)[3]
 
-tt2       <- seq(0.5, 2.5, by = 0.01)
+tt2       <- seq(0.25, 2.5, by = 0.01)
 pred2     <- predict(fit2, list(hours = tt2))
 preddata2 <- cbind.data.frame(pred2, tt2)
 
@@ -629,11 +659,7 @@ y2     <- as.numeric(as.character(all_Germ_sum$costs))
 TSS2   <- sum((log10(y2) - mean(y2))^2)
 R22    <- 1 - (RSS.p2/TSS2)
 
-#scientific_10 <- function(x) {
-#  parse(text=gsub("e", " %*% 10^", scales::scientific_format()(x)))
-#}
-
-# Plot 
+# Figure 
 ggplot(NULL, aes(x = x, y = y))+
   geom_bar(data = all_Germ_sum, 
            aes(x = hours, y = costs, fill = name), stat = "identity", color = 'grey25')+
@@ -646,43 +672,36 @@ ggplot(NULL, aes(x = x, y = y))+
   annotate(geom = "text", x = 2.5, y = 2e9, label = paste0("-\U03BB", "=" , round(label, 3)), hjust = "right", size = 4, fontface = 'italic')+
   annotate(geom = "text", x = 2.5, y = 1.5e9, label = paste0("R2", "=" , round(R2, 3)), hjust = "right", size = 4, fontface = 'italic')+
   theme(legend.position = c(0.8, 0.8), legend.title = element_blank())+
-  scale_x_continuous(breaks = c(0.5, 0.8, 1, 1.5, 1.7, 2, 2.5))
-# END Figure 2 
+  scale_x_continuous(breaks = c(0.5, 1, 1.5, 2, 2.5), limits = c(0.25,2.8))
+# END Figure  
 
-# Costs until germination
-line_integral <- function(x, y) {
-  dx <- diff(x)
-  end <- length(y)
-  my <- (y[1:(end - 1)] + y[2:end]) / 2
-  sum(dx *my)
-} 
-
-x <- preddata2$tt2[1:27]
-y <- preddata2$pred2[1:27]
-plot(x,y,"l")
-line_integral(x,y)
-
-# Pie
+# Pie 
 all_Germ_sum_pie<- sumAll_Germ %>%
   group_by(source) %>%
   summarise(costs = sum(value))
 
-replicationGerm   = germRepTotal/sum(all_Germ_sum$costs+germRepTotal+87154355)*100 #germination genes 0.6%
-transcriptionGerm = 681377848/sum(all_Germ_sum$costs+germRepTotal+87154355)*100 #8.1%
-translationGerm   = 6317061229/sum(all_Germ_sum$costs+germRepTotal+87154355)*100 #74.8%
-membraneGerm      = 87154355/sum(all_Germ_sum$costs+germRepTotal+87154355)*100 #%1
+replicationGerm   = sum(germRepTotal)/sum(all_Germ_sum$costs+germRepTotal)*100 #germination genes 0.6%
+transcriptionGerm = 681377848/sum(all_Germ_sum$costs+germRepTotal)*100 #8.1%
+translationGerm   = 6317061229/sum(all_Germ_sum$costs+germRepTotal)*100 #74.8%
 
-proportion2 <- c(round(replicationGerm, 2), round(transcriptionGerm, 2), round(translationGerm, 2), round(membraneGerm, 2) )
-pieCost2    <- c("replication", "transcription", "translation", "membrane")
+# Removing the membrane, couln't find a reference for the size of the membrane synthesized. 
+# Previously I calculated the whole mebrane
+
+proportion2 <- c(round(replicationGerm, 2), round(transcriptionGerm, 2), round(translationGerm, 2))
+pieCost2    <- c("replication", "transcription", "translation")
 pieData2    <- cbind.data.frame(pieCost2, proportion2)
 
 ggplot(pieData2, aes(x = "", y = proportion2, fill = pieCost2))+
   geom_bar(width = 1, stat = "identity", color = "black")+ 
   coord_polar("y", start=0)+
   mytheme+ 
-  scale_fill_manual(values = c("#E64B35","#4DBBD5","#3C5488","#F39B7F"))
+  scale_fill_manual(values = c("#4DBBD5","#3C5488","#F39B7F"))
 
-###########################OTHER TRAITS###################################
+
+# OTHER TRAITS
+######################
+# Other traits
+######################
 ##########################################################################
 
 # Merge trait data
@@ -702,7 +721,7 @@ totalCosts_traits <- mergedTraitData %>%
   mutate(translationOpportunity = translationAll*aa_opportunitySum) %>%
   mutate(translationTotal = translationDirect + translationOpportunity) %>%
   mutate(transcriptionAll = (abundance.filled/1e3)*(1774445/1e6)*as.numeric(gene_length)) %>%
-  mutate(transcriptionDirect = transcriptionAll*(10+(2*8*1))) %>% #assuming that mRNAs transcribed at least 1 hour
+  mutate(transcriptionDirect = transcriptionAll*(10+(2*12*1))) %>% #assuming that mRNAs transcribed at least 1 hour
   mutate(transcriptionOpportunity = transcriptionAll*31) %>%
   mutate(transcriptionTotal = transcriptionDirect + transcriptionOpportunity) %>%
   mutate(costs = transcriptionTotal + translationTotal)
@@ -715,9 +734,7 @@ costs_sum_traits <- totalCosts_traits %>%
   select(category, sumCosts) %>%
   add_row(category = "total_budget", sumCosts = 2.6e10) %>%
   add_row(category = "basal_metabolism", sumCosts = 3.5e8) %>%
-  #add_row(category = "sporulation", sumCosts = 1483262323) %>%
-  #add_row(category = "germination", sumCosts = 6447232190)
-  add_row(category = "developmental_program", sumCosts = 7930494513)
+  add_row(category = "sporulation", sumCosts = 1483262323) 
 
 # Plot cumulative costs
 ggplot(costs_sum_traits, aes(x = log10(sumCosts), y = reorder(category, sumCosts)))+
@@ -731,7 +748,7 @@ ggplot(costs_sum_traits, aes(x = log10(sumCosts), y = reorder(category, sumCosts
 costs_sum_traits_rel <- costs_sum_traits %>%
   mutate(relative = (sumCosts/2.6e10)*100)
 
-### Figure3 ###
+### Figure 2 ###
 ggplot(costs_sum_traits_rel, aes(x = log10(sumCosts), y = reorder(category, sumCosts)))+
   geom_col(fill="grey", color="black")+
   #geom_vline(xintercept = log10(1737135887), linetype = 'dashed')+
@@ -747,15 +764,18 @@ ggplot(costs_sum_traits_rel, aes(x = log10(sumCosts), y = reorder(category, sumC
   
   coord_cartesian(xlim = c(7.8,10.5))+
   mytheme
-### Figure 3 ###
+### Figure 2 ###
 
 #Basal metabolism an hour 350000000 
-#350000000*10 During spore formation
-(3500000000/7930494513)*100
+#350000000*8 During spore formation
+(350000000*8 /2178858885)*100 
 
 
+# ESSENTIAL GENES #
+######################
+# Essential genes
+######################
 ##########################################################################
-# ESSENTIAL GENES################################
 # Distribution of essential genes and others 
 # Costs of genes genome wide 
 
@@ -780,7 +800,7 @@ delAllCosts <- deletionLibMergeRelevant %>%
   mutate(replicationOpp = gene_length.filled*35*2) %>% 
   mutate(replicationDir = gene_length.filled*14*2) %>%
   mutate(transcriptOpp = transcript*31) %>%
-  mutate(transcriptDir = transcript*(10+(2*8*1))) %>%
+  mutate(transcriptDir = transcript*(10+(2*12*1))) %>%
   mutate(translationOpp = protein*aa_opportunitySum) %>% # ignoring protein degradation
   mutate(translationDir = protein*aa_directSum) %>% 
   group_by(success) %>% 
@@ -809,8 +829,33 @@ ggplot(delAllCosts, aes(y = costs, x = source,  fill = process))+
 totals <- delAllCosts %>% 
   group_by(success, source) %>% 
   summarise(sum = sum(costs))
-##########################################################################  
-#SPORULATION EFFICIENCY#############################
+
+######################
+# Quality 
+#####################
+###########################################################################
+delAllCosts2 <- deletionLibMergeRelevant %>%
+  mutate(transcript = (((abundance.filled/1e2)*1774445)/1e6)*gene_length.filled) %>%
+  mutate(protein = (abundance.filled*1774445)/1e6) %>% 
+  mutate(replicationOpp = gene_length.filled*35*2) %>% 
+  mutate(replicationDir = gene_length.filled*14*2) %>%
+  mutate(transcriptOpp = transcript*31) %>%
+  mutate(transcriptDir = transcript*(10+(2*12*1))) %>%
+  mutate(translationOpp = protein*aa_opportunitySum) %>% # ignoring protein degradation
+  mutate(translationDir = protein*aa_directSum) %>% 
+  mutate(sum = translationOpp+translationDir+replicationOpp+replicationDir+transcriptOpp+transcriptDir) %>% 
+  right_join(mergedExpData_time_distinct, by = "locus_tag") 
+  
+  ggplot(delAllCosts2, aes(x = log10(sum), y = rSS_average))+
+  geom_point(alpha = .1)+
+  ylab("spore quality")+
+  xlab("gene costs")
+
+# SPORULATION EFFICIENCY #
+#####################
+# Efficiency
+#####################
+##########################################################################
 
 ggplot(efficiency, aes(efficiency))+
   geom_density()+
@@ -846,11 +891,11 @@ ggplot(densityPlot, aes(x = x.new))+
   scale_x_continuous(limits = c(-30,130))
 ### Figure Efficiency ###
 
-########################################################################## 
-                              
-##############################EVOLUTION################################### 
-##########################################################################
 
+####################
+# EVOLUTION
+####################
+########################################################################
 
 # Merge with mutant library
 # Essential genes (66 of them)
@@ -887,90 +932,45 @@ scDataAll <- cbind.data.frame(gene.lenght = sporeTranscriptOpp$gene_length.fille
 #scData <- scData[complete.cases(scData), ]
 
 scDataMut <- scDataAll %>%
-  left_join(mutantLib, by = "locus_tag") %>%
-  mutate(known_mutants = case_when(mutant == "known sporulation mutant" ~ "essential")) %>%
-  filter(known_mutants == "essential")
-  
-scDataNoRep <- scDataAll %>%
-  filter(source != "replication")
-
-ggplot(scDataAll, aes(x = log10(gene.lenght), y = log10(sc), color = source))+
-  #geom_point(data = scDataMut, aes(x = log10(gene.lenght), y = log10(sc)), color = "grey25", alpha =.7)+
-  geom_point(alpha = .2)+
-  geom_hline(yintercept = -7, color = "grey50", linetype = "dashed")+
-  facet_wrap(.~type)+
-  stat_smooth(method = "lm")+
-  theme_bw()+
-  mytheme+
-   scale_color_npg()+
-  stat_poly_eq(parse=T, aes(label = ..eq.label..), formula=y~x)+
-  ylab("log(selection coefficient)")+
-  xlab("log(gene length)")
-
-
-ggplot(scDataNoRep, aes(x = log10(gene.lenght), y = log10(sc), color = source))+
-  #geom_point(data = scDataMut, aes(x = log10(gene.lenght), y = log10(sc)), color = "grey25", alpha =.7)+
-  geom_point(alpha = .2)+
-  geom_hline(yintercept = -7, color = "grey50", linetype = "dashed")+
-  facet_wrap(.~type)+
-  stat_smooth(method = "lm")+
-  theme_bw()+
-  mytheme+
-  stat_poly_eq(parse=T, aes(label = ..eq.label..), formula=y~x)+
-  ylab("log(selection coefficient)")+
-  xlab("log(gene length)")+
-  scale_color_manual(values = c("#4DBBD4FF", "#00A087FF"))
-
-ggplot(scDataAll, aes(x = log10(protein.abundance), y = log10(sc), color = source))+
-  #geom_point(data = scDataMut, aes(x = log10(protein.abundance), y = log10(sc)), color = "grey25", alpha =.7)+
-  geom_hline(yintercept = -log10(3e7), color = "grey50", linetype = "dashed")+
-  geom_point(alpha = .2)+
-  facet_wrap(.~type)+
-  stat_smooth(method = lm)+
-  theme_bw()+
-  scale_color_npg()+
-  mytheme+
-  stat_poly_eq(parse = T, aes(label = ..eq.label..), formula=y~x)+
-  ylab("Fraction of total energy budget (log)")+
-  xlab("protein abundance (log)")
-
+  mutate(Ne = log10(sc)*-1) %>%
+  full_join(mutantLib, by = "locus_tag") 
 #(Ne from Masel and Maugan 2007)
 
-# Using the knockout library 
-delAllCostsEvo <- deletionLibMergeRelevant %>%
-  mutate(transcript = (((abundance.filled/1e3)*1774445)/1e6)*gene_length.filled) %>%
-  mutate(protein = (abundance.filled*1774445)/1e6) %>% 
-  mutate(replicationOpp = gene_length.filled*35*2) %>% 
-  mutate(replicationDir = gene_length.filled*14*2) %>%
-  mutate(transcriptOpp = transcript*31) %>%
-  mutate(transcriptDir = transcript*(10+(2*8*1))) %>%
-  mutate(translationOpp = protein*aa_opportunitySum) %>% # ignoring protein degradation
-  mutate(translationDir = protein*aa_directSum) %>% 
-  select(rSS_average, abundance, gene_length, locus_tag,success,replicationOpp,replicationDir,transcriptOpp,transcriptDir,translationOpp,translationDir) %>% 
-  group_by(locus_tag, success) %>% 
-  pivot_longer(replicationOpp:translationDir, names_to = 'source', values_to = 'costs') %>% 
-  mutate(process = rep(c("replication", "transcription", "translation"), each = 2, length_out = locus_tag))  %>%
-  mutate(source = rep(c("opportunity", "direct"), times = 3, length_out = locus_tag)) %>% 
-  mutate(selection = (costs/2.6e10)*0.69) %>% 
-  filter(!success == "nonessential")
-
-ggplot(delAllCostsEvo, aes(x = success, y = log10(selection), color = source))+
-  geom_hline(yintercept = -log10(1e8), color = "grey50", linetype = "dashed")+
-  geom_hline(yintercept = -log10(3e5), color = "grey50", linetype = "dashed")+
-  geom_jitter(alpha = .2)+
-  geom_boxplot()+
-  facet_grid(~process)+
-  theme_bw()+
-  scale_color_npg()+
+mutant <- scDataMut %>%
+  filter(mutant == "known sporulation mutant")
+  
+  
+# All sporulation genes 
+ggplot(scDataMut, aes(x = log10(sc)))+
+  geom_vline(xintercept = -log10(1e8), color = "#E64B35", linetype = "dashed", size=.7)+
+  geom_vline(xintercept = -log10(1e5), color = "#E64B35", linetype = "dashed", size=.7)+
+  #geom_histogram(aes(y=..density.., fill = source), alpha = 0.1) +
+  geom_density(aes(color=source), size = 1)+
   mytheme+
-  ylab("Fraction of total energy budget (log)")+
-  xlab("Gene length")+
-  stat_smooth(method = "lm")+
-  theme_bw()+
-  mytheme
+  scale_color_manual(values = c( "#4DBBD5", "#00A087", "#3C5488"))+
+  scale_fill_manual(values = c( "#4DBBD5", "#00A087", "#3C5488"))+
+  xlab("Fractional costs (Sc)")+
+  ylab("Frequency")+
+  #geom_histogram(data = scDataTotal, aes(x = log10(mean), y=..density..), alpha = 0.1)+
+  geom_density(data = scDataTotal, aes(x = log10(mean)), size = 1, linetype = "dashed") 
 
+
+ggplot(scDataMut, aes(x = Ne, y = sc))+
+  geom_vline(xintercept = 8, color = "#E64B35", linetype = "dashed", size=.7)+
+  geom_vline(xintercept = 5, color = "#E64B35", linetype = "dashed", size=.7)+
+  geom_point()+
+  mytheme+
+  scale_color_manual(values = c( "#4DBBD5", "#00A087", "#3C5488"))+
+  scale_fill_manual(values = c( "#4DBBD5", "#00A087", "#3C5488"))+
+  xlab("Ne")+
+  ylab("Sc")+
+  geom_point(data = mutant, aes(x = Ne, y = sc), color = "red")
+  
+
+##############################
 # CONSERVED SPORULATION GENES
-##########################################################################
+##############################
+########################################################################
 
 # Conserved sporulation genes
 # After Acidamicoccus fermentans DSM 20731 non-sporulating species, add an id column
@@ -985,40 +985,13 @@ mergedOrtData <- conservedLib %>%
   group_by(locus_tag, process, source, presence) %>% 
   summarise_at(c("costs", "selection"), mean, na.rm = T)
   
-ggplot(mergedOrtData, aes(x = log10(selection), color = process))+
-  geom_vline(xintercept = -log10(1e7), color = "#E64B35", linetype = "dashed", size=1)+
-  geom_vline(xintercept = -log10(1e5), color = "#E64B35", linetype = "dashed", size=1)+
-  geom_histogram(aes(y=..density.., fill=process), alpha = 0.2) +
-  facet_grid(~presence)+
-  geom_density(aes(color=process), size = 1)+
-  mytheme+
-  scale_color_manual(values = c( "#4DBBD5", "#00A087", "#3C5488"))+
-  scale_fill_manual(values = c( "#4DBBD5", "#00A087", "#3C5488"))
 
-scDataTotal <- scDataAll %>%
-  group_by(locus_tag)%>%
-  summarize(mean = mean(sc))
-
-# All sporulation genes 
-ggplot(scDataAll, aes(x = log10(sc)))+
-  geom_vline(xintercept = -log10(1e7), color = "#E64B35", linetype = "dashed", size=.7)+
-  geom_vline(xintercept = -log10(1e5), color = "#E64B35", linetype = "dashed", size=.7)+
-  geom_histogram(aes(y=..density.., fill = source), alpha = 0.1) +
-  geom_density(aes(color=source), size = 1)+
-  mytheme+
-  scale_color_manual(values = c( "#4DBBD5", "#00A087", "#3C5488"))+
-  scale_fill_manual(values = c( "#4DBBD5", "#00A087", "#3C5488"))+
-  xlab("Fractional costs (Sc)")+
-  ylab("Frequency")+
-  geom_histogram(data = scDataTotal, aes(x = log10(mean), y=..density..), alpha = 0.1)+
-  geom_density(data = scDataTotal, aes(x = log10(mean)), size = 1, linetype = "dashed") 
-
-########################################################################## 
-
+                          ##################
 ##########################RETAKE GERMINATION##############################
-# Different data sets
-##########################################################################
-# 1. Differential gene expression 
+                          ##################
+####################################
+# 1.Differential gene expression 
+####################################
 #########################################################################
 germLong1 <- germination1 %>%
   pivot_longer(cols = c("Tminus30_Tminus15","Tminus15_T0","T0_T15","T15_T30","T30_T60","T60_T150","T150_T330"),
@@ -1096,8 +1069,10 @@ germination1sum <- germination1_all %>%
 ggplot(data = germination1sum, aes(x = ordered_interval, y = costs, fill = name))+
   geom_bar(stat = "identity")+
   ggtitle("differential gene exp. + prot database ")
-#########################################################################
-# 2. Differential protein expression
+
+#####################################
+# 2.Differential protein expression
+#####################################
 #########################################################################
 
 germLong2 <- germination2 %>%
@@ -1182,9 +1157,11 @@ ggplot(data = germination2sum, aes(x = ordered_interval, y = costs, fill = name)
   geom_bar(stat = "identity")+
   ggtitle("differential protein exp. + prot. database")
 
-#########################################################################
-#########################################################################
+
 # 3. Newly synthesized proteins - Goes to manuscript
+#####################################
+# 3.New Proteins-Goes to the manuscript
+#####################################
 #########################################################################
 germination6_interval <- cbind.data.frame(
   protID = germination6$ProtID, H0.25 = germination6$T15-germination6$T0,
@@ -1202,12 +1179,10 @@ germLong6_interval <- germination6_interval %>%
 protSeqTidyAbun$gene <- protSeqTidyAbun$gene.y
 
 germLong6_merged_interval <- germLong6_interval %>%
-  left_join(protID_gene, by = "protID") %>%
-  left_join(protSeqTidyAbun, by = "gene") %>%
+  left_join(protSeqTidyAbun, by = "protID") %>%
   mutate(score.filled = replace_na(score, 18)) %>%
-  #mutate(abundance.filled = replace_na(abundance, 18)) %>%
+  mutate(protein_length.filled = replace_na(protein_length, 254)) %>%
   mutate(gene_length.filled = replace_na(gene_length, 765)) %>%
-  mutate(protein_length.filled = replace_na(protein_length, 254))%>%
   mutate(time_h = case_when(
     time_interval == "H0.25" ~ 0.25,
     time_interval == "H0.5" ~ 0.25,
@@ -1218,6 +1193,21 @@ germLong6_merged_interval <- germLong6_interval %>%
     time_interval == "H4" ~ 1,
     time_interval == "H5.5" ~ 1.5))
 
+### Replication costs ###
+
+germRep6  <- germLong6_merged_interval %>%
+  mutate(opportunity = 2*gene_length.filled*35) %>% #2 = doublestring  35 = nucleotide costs 
+  mutate(direct = 2*gene_length.filled*14)
+
+# Sum 
+germRepSum6 <- germRep6 %>%
+  group_by(time_interval) %>%
+  summarise(sumOpp = sum(opportunity, na.rm =T), sumDir = sum(direct, na.rm =T))
+  germRepTotal <- germRepSum$sumOpp+germRepSum$sumDir
+  
+  germinationRepCost <- germRepSum6$sumOpp[1] + germRepSum6$sumDir[1]
+  outgrowthRepCost   <- sum(germRepSum6$sumOpp[2:7]) + sum(germRepSum6$sumDir[2:7])  
+  
 ### Transcription costs ###
 # Opportunity costs 
 germination6opp_interval   <- germLong6_merged_interval %>%
@@ -1263,8 +1253,12 @@ ggplot(data = germination6sum_interval, aes(x = time_interval, y = costs))+
   ggtitle("newly synthesized and counted proteins")
   #coord_cartesian(ylim = c(7.5,9.5))
 
-#########################################################################
-# Model, plot, pie
+germinationTT <- sum(germination6sum_interval$costs[1:2])
+outgrowthTT   <- sum(germination6sum_interval$costs[2:14])
+
+#####################################
+# Model, plot, pie -Remove membrane  
+#####################################
 #########################################################################
 germination6sum_interval$hours <- as.numeric(germination6sum_interval$hour)
 
@@ -1284,45 +1278,43 @@ pred3     <- predict(fit3, list(hours = tt3))
 preddata3 <- cbind.data.frame(pred3, tt3)
 
 RSS.p3 <- sum(residuals(fit3)^2)
-y3     <- as.numeric(as.character(germination6sum_int_sub$costs))
+y3     <- as.numeric(as.character(germination6sum_int_sum$costs))
 TSS3   <- sum((log10(y3) - mean(y3))^2)
 R23    <- 1 - (RSS.p3/TSS3)
-
-#scientific_10 <- function(x) {
-#  parse(text=gsub("e", " %*% 10^", scales::scientific_format()(x)))
-#}
 
 # Plot 
 
 germination6sum_interval_plotSum <- germination6sum_interval %>%
   #filter(!hours == 0.25) %>%
-  filter(!hours == 5.5)
+  #filter(!hours == 5.5) %>%
+  group_by(hours) %>%
+  summarize(sum = sum(costs))
 
 ggplot(NULL, aes(x = x, y = y))+
   geom_bar(data = germination6sum_interval_plotSum, 
-           aes(x = hours, y = costs, fill = name), stat = "identity", color = 'grey25')+
+           aes(x = min(hours)+ seq(0.5, by = mean(diff(hours)), length = length(hours)), 
+                                   y = sum), stat = "identity", color = 'grey25')+
   ylab("ATP molecules")+
   xlab("Time (h)")+
   geom_line(data = preddata3, aes(x = tt3, y = pred3))+
   mytheme+
   scale_y_continuous(labels = scientific_10)+
   scale_fill_npg()+
-  annotate(geom = "text", x = 4.1, y = 1.2e9, label = paste0("\U03BB", "=" , round(label, 3)), hjust = "right", size = 4, fontface = 'italic')+
-  annotate(geom = "text", x = 4.1, y = 1.5e9, label = paste0("r2", "=" , round(R2, 3)), hjust = "right", size = 4, fontface = 'italic')+
-  annotate(geom = "text", x = 4.1, y = 1.8e9, label = "outgrowth", hjust = "right", size = 4, fontface = 'italic')+
-  annotate(geom = "text", x = 4.1, y = 1e9, label = "germination", hjust = "right", size = 4, fontface = 'italic' )+
+  #annotate(geom = "text", x = 4.1, y = 1.2e9, label = paste0("\U03BB", "=" , round(label, 3)), hjust = "right", size = 4, fontface = 'italic')+
+  #annotate(geom = "text", x = 4.1, y = 1.5e9, label = paste0("r2", "=" , round(R2, 3)), hjust = "right", size = 4, fontface = 'italic')+
+  #annotate(geom = "text", x = 4.1, y = 1.8e9, label = "outgrowth", hjust = "right", size = 4, fontface = 'italic')+
+  #annotate(geom = "text", x = 4.1, y = 1e9, label = "germination", hjust = "right", size = 4, fontface = 'italic' )+
   theme(legend.position = "none")
-
-
+  
 # Pie
 all_Germ_sum_pie<- sumAll_Germ %>%
   group_by(source) %>%
   summarise(costs = sum(value))
 
-replicationGerm   = germRepTotal/sum(all_Germ_sum$costs+germRepTotal+87154355)*100 #germination genes 0.6%
-transcriptionGerm = 681377848/sum(all_Germ_sum$costs+germRepTotal+87154355)*100 #8.1%
-translationGerm   = 6317061229/sum(all_Germ_sum$costs+germRepTotal+87154355)*100 #74.8%
-membraneGerm      = 87154355/sum(all_Germ_sum$costs+germRepTotal+87154355)*100 #%1
+replicationGerm   = germRepTotal/sum(all_Germ_sum$costs+germRepTotal+29367246728)*100 #germination genes 0.6%
+transcriptionGerm = 681377848/sum(all_Germ_sum$costs+germRepTotal+29367246728)*100 #8.1%
+translationGerm   = 6317061229/sum(all_Germ_sum$costs+germRepTotal+29367246728)*100 #74.8%
+membraneGerm      = 29367246728/sum(all_Germ_sum$costs+germRepTotal+29367246728)*100 #%1
 
 proportion2 <- c(round(replicationGerm, 2), round(transcriptionGerm, 2), round(translationGerm, 2), round(membraneGerm, 2) )
 pieCost2    <- c("replication", "transcription", "translation", "membrane")
@@ -1333,3 +1325,255 @@ ggplot(pieData2, aes(x = "", y = proportion2, fill = pieCost2))+
   coord_polar("y", start=0)+
   mytheme+ 
   scale_fill_manual(values = c("#E64B35","#4DBBD5","#3C5488","#F39B7F"))
+
+
+# New take on Figure 2 
+
+#########################
+# TRAITS NEW FIGURE
+#########################
+#########################################################################
+
+# Merge trait data
+mergedTraitData <- otherTraits %>%
+  filter(!category == "sporulation") %>%
+  filter(!category == "germination") %>%
+  left_join(annotationData, by = "gene") %>%
+  left_join(protSeqTidyAbun[,c("locus_tag","abundance", "aa_opportunitySum", "aa_directSum")], by = "locus_tag") %>%
+  mutate(abundance.filled = replace_na(abundance, 18)) %>%
+  group_by(category) %>%
+  mutate(no_genes = length(category))
+
+# All costs
+totalCosts_traits <- mergedTraitData %>%
+  mutate(translationAll = abundance.filled*(1774445/1e6)) %>%
+  mutate(translationDirect = translationAll*aa_directSum) %>% # ignoring protein degradation
+  mutate(translationOpportunity = translationAll*aa_opportunitySum) %>%
+  mutate(translationTotal = translationDirect + translationOpportunity) %>%
+  mutate(transcriptionAll = (abundance.filled/1e3)*(1774445/1e6)*as.numeric(gene_length)) %>%
+  mutate(transcriptionDirect = transcriptionAll*(10+(2*12*1))) %>% #assuming that mRNAs transcribed at least 1 hour
+  mutate(transcriptionOpportunity = transcriptionAll*31) %>%
+  mutate(transcriptionTotal = transcriptionDirect + transcriptionOpportunity) %>%
+  mutate(RepOpportunity = 2*as.numeric(gene_length)*35) %>% #2 = doublestring  35 = nucleotide costs 
+  mutate(RepDirect = 2*as.numeric(gene_length)*14) %>%
+  mutate(RepTotal = RepOpportunity+RepDirect) %>%
+  mutate(costs = transcriptionTotal + translationTotal + RepTotal)
+
+
+# Cumulative costs
+costs_sum_traits <- totalCosts_traits %>%
+  group_by(category) %>%
+  summarize(sumCosts = sum(costs, na.rm = T),
+            number_genes = mean(no_genes)) %>%
+  select(category, sumCosts) %>%
+  add_row(category = "growth requirements", sumCosts = 2.6e10) %>%
+  add_row(category = "basal metabolism", sumCosts = 3.5e8) %>%
+  #add_row(category = "maintenance oligotrophic", sumCosts = 3.5e8/96) %>%
+  add_row(category = "membrane", sumCosts = cost_membrane) %>%
+  add_row(category = "developmental programm", sumCosts = total_spore_nm+
+            outgrowthRepCost+outgrowthTT+germinationRepCost+germinationTT)%>%
+  add_row(category = "genome replication", sumCosts = genome_tot) 
+  
+ 
+category = factor(c("sporulation", "germination", "outgrowth"))
+sumCosts = c(total_spore_nm,germinationRepCost+germinationTT, outgrowthRepCost+outgrowthTT)
+costs_sum_dev <- cbind.data.frame(category, sumCosts)
+
+# Add a second axis 
+costs_sum_traits_rel <- costs_sum_traits %>%
+  mutate(relative = (sumCosts/2.6e10)*100)
+
+### Figure 2 ###
+
+ggplot(costs_sum_traits_rel, aes(x = log10(sumCosts), y = reorder(category, sumCosts)))+
+  geom_col(fill="#F39B7F", color="black")+
+  geom_vline(xintercept = log10(costs_sum_dev[1,2]))+
+  geom_vline(xintercept = log10(costs_sum_dev[1,2]+costs_sum_dev[2,2]))+
+
+  # Custom the Y scales:
+  scale_x_continuous(
+    
+    # Features of the first axis
+    name = "Costs (ATP molecules)",
+    
+    # Add a second axis and specify its features
+    sec.axis = sec_axis(trans = ~log10((10^./2.6e10)*100), name = "% Costs relative to sporulation"))+
+  
+  coord_cartesian(xlim = c(7.8,10.5))+
+  mytheme+
+  theme(axis.ticks.length = unit(2, "mm"))+
+  theme(axis.ticks.y = element_blank())+
+  theme(axis.title.y = element_blank())
+  
+
+ggplot(costs_sum_dev, aes(y = log10(sumCosts), x = reorder(category, sumCosts)))+
+  geom_col(fill="grey", color="black")+
+  scale_y_continuous(name = "Costs (ATP molecules)")+
+  coord_cartesian(ylim = c(7.8,10.5))+
+  mytheme
+
+### Figure 2 ###
+
+#########################
+# ALTERNATIVE SPORULATION 
+#########################
+#########################################################################
+# Alternative expression data
+
+# Data = sporulation1
+# Add new columns for differences
+
+#for (col in 3:ncol(sporulation1)) {
+#  new_col_name <- paste0("diff_", col)
+#  sporulation1[[new_col_name]] <- 0  
+  
+#  for (i in 1:nrow(sporulation1)) {
+#    sporulation1[[new_col_name]][i] <- sporulation1[[col+1]][i] - sporulation1[[col]][i]
+
+#    }
+#}
+
+# Since the other data set is normalized with 0 
+
+sporulation1_long <- sporulation1 %>%
+  mutate(across(X0min:X480min, ~ .x - X0min)) %>%
+  mutate(across(everything(), function(x){replace(x, which(x<0), 0)})) %>%
+  mutate(h1 = X15min+X30min+X45min+X60min, 
+         h2 = X75min+X90min+X105min+X120min,
+         h3 = X135min+X150min+X120min+X180min,
+         h4 = X210min+X240min,
+         h5 = X270min+X300min,
+         h6 = X330min+X360min,
+         h7 = X390min+X420min,
+         h8 = X450min+X480min) %>% 
+  select(c(1, 2, starts_with("h"))) %>%
+  pivot_longer(cols = starts_with("h"), names_to = 'expression', values_to = 'value') %>%
+  filter(!value == 0)
+  
+sporulation1_distinct <-  sporulation1_long %>%
+  distinct(locus_tag, .keep_all = TRUE) %>% # genes are accounted only once
+  left_join(protSeqTidyAbun, by = "locus_tag") %>%
+  mutate(abundance.filled = replace_na(abundance, 18)) %>%
+  mutate(gene_length.filled = replace_na(gene_length, 765)) %>%
+  mutate(protein_length.filled = replace_na(protein_length, 254))
+
+sporulation1_time <-  sporulation1_long %>%
+  left_join(protSeqTidyAbun, by = "locus_tag") %>%
+  mutate(abundance.filled = replace_na(abundance, 18)) %>%
+  mutate(gene_length.filled = replace_na(gene_length, 765)) %>%
+  mutate(protein_length.filled = replace_na(protein_length, 254))
+
+# Replication
+
+# Opportunity costs 
+sporulation1Rep  <- sporulation1_distinct%>%
+  mutate(opportunity = 2*gene_length.filled*35) %>% #2 = doublestring  35 = nucleotide costs 
+  mutate(direct = 2*gene_length.filled*14)
+
+# Sum 
+sporulation1RepSum <- sporulation1Rep %>%
+  summarise(sumOpp = sum(opportunity, na.rm =T), sumDir = sum(direct, na.rm =T))
+sporulation1ReTotal <- sporulation1RepSum$sumOpp+sporulation1RepSum$sumDir
+
+# Transcription costs
+
+# Opportunity costs 
+sporulation1TranscriptOpp <- sporulation1_distinct %>%
+  mutate(estimation = (((abundance.filled/1e2)*1774445)/1e6)*gene_length.filled) %>% #protein abundance/1000 X 1.8 X gene length
+  # the reason I multiply with 1.8 is that the protein abundance is reported as parts per million. An average size bacteria has about 3 million protein molecules
+  # this was reported experimentally as average 1774445 in Bacillus (Maass et.al. 2011)
+  mutate(opportunity = estimation*31) 
+
+# Sum 
+sporulation1TranscriptOppSum <- sporulation1TranscriptOpp %>%
+  group_by(expression) %>%
+  summarise(sumOpp = sum(opportunity, na.rm =T))
+
+# Direct costs 
+sporulation1TranscriptDir <- sporulation1_time %>%
+  mutate(estimation = (((abundance.filled/1e2)*1774445)/1e6)*gene_length.filled) %>% 
+  mutate(direct = estimation*(10+(2*12*1))) #hours
+
+# Sum 
+sporulation1TranscriptDirSum <-sporulation1TranscriptDir %>% 
+  group_by(expression) %>%
+  summarise(sumDir = sum(direct, na.rm =T))
+
+#cbind.fill<-function(...){
+#  nm <- list(...) 
+#  nm<-lapply(nm, as.matrix)
+#  n <- max(sapply(nm, nrow)) 
+#  do.call(cbind, lapply(nm, function (x) 
+#    rbind(x, matrix(, n-nrow(x), ncol(x))))) 
+#}
+
+# Cumulative costs
+transcriptCostsspor1 <- as.data.frame(cbind.fill(sporulation1TranscriptDirSum$expression, opportunity = sporulation1TranscriptOppSum$sumOpp, 
+                                    direct = sporulation1TranscriptDirSum$sumDir))
+transcriptCostsspor1[is.na(transcriptCostsspor1)] <- 0
+names(transcriptCostsspor1) <- c("hours", "opportunity", "direct")
+
+# Translation costs
+
+# Opportunity and direct costs 
+sporeTranslationOppDirspor1 <- sporulation1_distinct %>%
+  mutate(estimation = (abundance.filled*1774445)/1e6) %>% 
+  mutate(direct = estimation*aa_directSum) %>% # ignoring protein degradation
+  mutate(opportunity = estimation*aa_opportunitySum) %>% 
+  mutate(total = direct + opportunity)
+
+# Sum
+sporeTranslationOppDirspor1Sum <- sporeTranslationOppDirspor1 %>%
+  group_by(expression) %>%
+  summarise(opportunity = sum(opportunity, na.rm = T), 
+            direct = sum(direct, na.rm = T), 
+            total = sum(total, na.rm = T))
+
+
+# Total costs, plots, pie, bars, model - TODO: Remove membrane
+
+# Total costs 
+cost_rep_all    <- genome_opp+genome_dir
+cost_rep_part2   <- sporulation1RepSum$sumOpp+sporulation1RepSum$sumDir
+cost_rep_rest2   <- cost_rep_all-cost_rep_part
+cost_transcript2  <- sum(sporulation1TranscriptOppSum$sumOpp, sporulation1TranscriptDirSum$sumDir)
+cost_translation2 <- sum(sporeTranslationOppDirspor1Sum$total)
+cost_membrane    <- lipid_opp+lipid_dir
+all_pie_costs2    <- cost_rep_all2+cost_transcript2+cost_translation2+cost_membrane 
+total_spore2      <- cost_rep_part2+cost_transcript2+cost_translation2+cost_membrane
+total_spore_nm2   <- cost_rep_part2+cost_transcript2+cost_translation2   
+
+# % proportions 
+rep_partial2     <- cost_rep_part2/all_pie_costs2*100 
+rep_rest2        <- cost_rep_rest2/all_pie_costs2*100 
+transcript2      <- cost_transcript2/all_pie_costs2*100 
+translation2     <- cost_translation2/all_pie_costs2*100 
+membrane2        <- cost_membrane2/all_pie_costs2*100 
+
+proportion2 <- c(rep_partial2, rep_rest2, transcript2, translation2, membrane)
+pieCost2    <- c("replication_partial", "replication_rest", "transcription", "translation", "membrane")
+pieData2    <- cbind.data.frame(pieCost2, proportion2)
+
+ggplot(pieData2, aes(x = "", y = proportion, fill = pieCost))+
+  geom_bar(width = 1, stat = "identity")+ 
+  coord_polar("y", start = 0)+
+  mytheme+ 
+  scale_fill_npg()
+
+### Total costs of sporulation ###
+### Figure  ###
+time2        <- rep(1:8, times = 2)
+copp2        <- as.data.frame(cbind.fill(transcriptCostsspor1$opportunity, sporeTranslationOppDirspor1Sum$opportunity))
+copp2[is.na(copp2)] <- 0
+opportunity2 <- as.numeric(copp2$V1)+as.numeric(copp2$V2)
+cdir2        <- as.data.frame(cbind.fill(transcriptCostsspor1$direct, sporeTranslationOppDirspor1Sum$direct))
+cdir2[is.na(cdir2)] <- 0
+direct2      <- as.numeric(cdir2$V1)+ as.numeric(cdir2$V2)
+costs2       <- c(opportunity2, direct2)
+type2        <- rep(c("opportunity", "direct"), each = 8, times=2) 
+
+sporulationCosts2 <- cbind.data.frame(time2, costs2, type2)
+sum(sporulationCosts2$costs) #8572993254
+
+ggplot(sporulationCosts2, aes(x = time2, y = costs2))+
+  geom_bar(stat = "identity")
